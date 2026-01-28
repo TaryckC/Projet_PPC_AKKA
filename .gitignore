@@ -1,0 +1,6 @@
+.bsp
+.idea
+.metals
+.vscode
+.scalafmt.conf
+build.sbt

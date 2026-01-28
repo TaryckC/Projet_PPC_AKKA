@@ -18595,3 +18595,8 @@ INFO: Unsupported notification method: $/setTrace
 2026.01.28 14:56:17 INFO  no build target found for /Users/taryck/Desktop/M2_STL_TMES/PPC/Projet_2/Projet_code/src/main/scala/ContactList.scala. Using presentation compiler with project's scala-library version: 3.3.7
 2026.01.28 14:56:53 INFO  no build target found for /Users/taryck/Desktop/M2_STL_TMES/PPC/Projet_2/Projet_code/src/main/scala/ContactList.scala. Using presentation compiler with project's scala-library version: 3.3.7
 2026.01.28 14:56:53 INFO  no build target found for /Users/taryck/Desktop/M2_STL_TMES/PPC/Projet_2/Projet_code/src/main/scala/ContactList.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.01.28 15:03:18 INFO  no build target found for /Users/taryck/Desktop/M2_STL_TMES/PPC/Projet_2/Projet_code/src/main/scala/ContactList.scala. Using presentation compiler with project's scala-library version: 3.3.7
+2026.01.28 15:03:18 INFO  no build target found for /Users/taryck/Desktop/M2_STL_TMES/PPC/Projet_2/Projet_code/src/main/scala/ContactList.scala. Using presentation compiler with project's scala-library version: 3.3.7
+janv. 28, 2026 3:07:47 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+2026.01.28 15:07:49 INFO  no build target found for /Users/taryck/Desktop/M2_STL_TMES/PPC/Projet_2/Projet_code/src/main/scala/DataBase.scala. Using presentation compiler with project's scala-library version: 3.3.7
