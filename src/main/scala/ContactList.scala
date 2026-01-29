@@ -159,6 +159,8 @@ class ContactListActor(val ownerId: Int, onwerRef: ActorRef, birthDate: Long)
       }
     }
 
+    onwerRef ! GetCurrentContacts(contacts.keys.toList)
+
     // Appelle récursif
     context.system.scheduler.scheduleOnce(
       contactListUpdateInterval,

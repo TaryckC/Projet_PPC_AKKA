@@ -22,6 +22,7 @@ object Musicien {
   case class GetCurrentContacts(contactList: List[Int])
   case object AloneSince
   case object BecomeMaster
+  case class PlayMeasure(measure: DataBaseActor.Measure)
 }
 
 class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
@@ -31,6 +32,7 @@ class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
   import scala.util.{Success, Failure}
   import context.dispatcher
   import Musicien._
+  import ConductorActor._
 
   // Instanciation des acteurs
   val myContactList: ActorRef =
@@ -50,7 +52,11 @@ class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
   val birthDate = System.currentTimeMillis()
   var aloneSince: Long = 0
   var amIMaster = false
-  var masterRef: ActorRef
+  var conductorRef: Option[ActorRef] = None
+  var playerRef: Option[ActorRef] =
+    Some(
+      context.actorOf(Props[PlayerActor], name = s"player-$id")
+    ) // Par défaut on est un 'player'
   var aliveContacts: List[Int] = List()
 
   // TODO : Ajouter une protection pour quand on lance trop vite et que des message échoue alors qu'ils ne devraient pas.
@@ -136,8 +142,10 @@ class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
 
     case GetCurrentContacts(contacts) => {
       aliveContacts = contacts
-      // TODO : Il faut déplacer la logique master existante dans musicien dans le coeur de l'acteur Master
-      masterRef ! contacts
+      if (amIMaster) {
+        // Encore une fois ici aussi, le foreach c'est si jamais on a None en conductor
+        conductorRef.foreach(_ ! UpdateMusicians(contacts))
+      }
     }
 
     case AloneSince => {
@@ -147,9 +155,32 @@ class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
     case Musicien.BecomeMaster => {
       print("\n Has become master")
       if (!amIMaster) {
-        masterRef = context.actorOf(
-        )
+        amIMaster = true
+        playerRef.foreach(context.stop) // On arrête le player
+        playerRef =
+          None // On n'a plus besoin de la référence vers le player car on ne peut pas devenir player à nouveau
+        // On établit les connexions avec les autres acteurs nécessaires au bon fonctionnement du conductor
+        val database =
+          context.actorOf(Props[DataBaseActor], name = s"database-$id")
+        val provider =
+          context.actorOf(
+            Props(new ProviderActor(database)),
+            name = s"provider-$id"
+          )
+        val conductor =
+          context.actorOf(
+            Props(new Conductor(provider, terminaux, id)),
+            name = s"conductor-$id"
+          )
+        conductorRef = Some(conductor)
+        conductor ! UpdateMusicians(aliveContacts)
+        conductor ! StartGame
       }
+    }
+
+    // On délègue le fait de jouer de la musique
+    case PlayMeasure(measure) => {
+      playerRef.foreach(_ ! measure)
     }
   }
 
