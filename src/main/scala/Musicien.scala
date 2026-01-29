@@ -4,29 +4,40 @@ import akka.actor._
 
 case class Start()
 
+object Musicien {
+  case class Hello(
+      senderId: Int,
+      timeStamp: Long,
+      contactRef: ActorRef,
+      isMaster: Boolean
+  )
+  case class Hey(
+      targetId: Int,
+      senderId: Int,
+      timeStamp: Long,
+      contactRef: ActorRef,
+      isMaster: Boolean
+  )
+  case object AmIAlone
+  case class GetCurrentContacts(contactList: List[Int])
+  case object AloneSince
+  case object BecomeMaster
+}
+
 class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
 
   import ContactListActor._
   import scala.concurrent.duration._
   import scala.util.{Success, Failure}
   import context.dispatcher
-
-  // DÉBUT OBJETS REÇUS
-  case class Hello(senderId: Int, timeStamp: Long, contactRef: ActorRef)
-  case class Hey(
-      targetId: Int,
-      senderId: Int,
-      timeStamp: Long,
-      contactRef: ActorRef
-  )
-  case object AmIAlone
-  case class getCurrentContacts(contactList: List[Int])
-
-  // FIN OBJETS REÇUS
+  import Musicien._
 
   // Instanciation des acteurs
   val myContactList: ActorRef =
-    context.actorOf(Props(new ContactListActor(id)), "contactList")
+    context.actorOf(
+      Props(new ContactListActor(id, self, System.currentTimeMillis())),
+      "contactList"
+    )
 
   /*
      Chaque musicien possède :
@@ -38,8 +49,12 @@ class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
   val displayActor = context.actorOf(Props[DisplayActor], name = "displayActor")
   val birthDate = System.currentTimeMillis()
   var aloneSince: Long = 0
-  var isMaster = false
+  var amIMaster = false
+  var masterRef: ActorRef
   var aliveContacts: List[Int] = List()
+
+  // TODO : Ajouter une protection pour quand on lance trop vite et que des message échoue alors qu'ils ne devraient pas.
+  // -> Réessayer de contacter toutes les x ms pendant y ms (au lancement uniquement) en cas d'échec
 
   def receive = {
 
@@ -55,14 +70,19 @@ class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
       // Il faut essayer de contacter les autres musiciens s'ils existent (régulièrement jusqu'à 30 secondes)
       // Et sinon, à la fin des 30 secondes, s'arrêter.
 
-      for (i <- 0 to 3) {
+      for (i <- 0 to 3 if i != id) {
         val host = terminaux(i).ip
         val port = terminaux(i).port
         val path = s"akka.tcp://MozartSystem$i@127.0.0.1:$port/user/Musicien$i"
 
         context.actorSelection(path).resolveOne(30.seconds).onComplete {
           case Success(ref) =>
-            ref ! Hello(id, birthDate, myContactList) // timestamp est un long
+            ref ! Hello(
+              id,
+              birthDate,
+              myContactList,
+              amIMaster
+            ) // timestamp est un long
             numberOfMusicianAtLaunch += 1
           case Failure(
                 ex
@@ -70,13 +90,7 @@ class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
         }
       }
 
-      if (numberOfMusicianAtLaunch == 0) {
-        // Le musicien est le premier arrivé
-        isMaster = true
-
-        // Il attends qu'on le contact pendant 30 secondes
-        aloneSince = System.currentTimeMillis()
-      }
+      updateAloneSince()
 
       // Toutes les secondes on va vérifier si on est seul depuis au moins 30 secondes.
       context.system.scheduler.scheduleOnce(1.seconds, self, AmIAlone)
@@ -84,38 +98,58 @@ class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
     }
 
     // Réception d'un message suite à la création d'un musicien (le musicien se présente)
-    case Hello(senderId, timeStamp, contactRef) => {
+    case Hello(senderId, timeStamp, contactRef, isMaster) => {
+      // print("\nHello de la part du musicien " + senderId)
       // On transmet les infos à la liste de contacts pour update
-      updateAloneSince()
       // On enregistre le nouveau contacte
       myContactList ! AddContact(
         senderId,
         timeStamp,
-        contactRef // contactRef étant la référénce vers la liste de contacte
+        contactRef, // contactRef étant la référénce vers la liste de contacte
+        isMaster
       )
 
       // On répond avec un Hey
-      sender() ! Hey(senderId, id, birthDate, contactRef)
+      sender() ! Hey(senderId, id, birthDate, myContactList, amIMaster)
     }
 
     // Après Avoir reçu un Hello, on répond avec Hey et on se présente aussi.
     // TODO : on peut aussi transmettre un timestamp qui correspond à notre date de naissance. (Pour établir la priorité des chefs)
-    case Hey(myId, senderId, timeStamp, contactRef) => {
-      updateAloneSince()
+    case Hey(myId, senderId, timeStamp, contactRef, isMaster) => {
+      // print("\nHey de la part du musicien " + senderId)
       // On enregistre le nouveau contacte
-      myContactList ! AddContact(senderId, timeStamp, contactRef)
+      myContactList ! AddContact(senderId, timeStamp, contactRef, isMaster)
     }
 
     // Appelle automatique toutes les secondes pour vérifier si on est seul depuis trop longtemps
     case AmIAlone => {
-      if (System.currentTimeMillis() - aloneSince >= 30 * 1000) {
+      if (
+        aliveContacts.length == 0 && System
+          .currentTimeMillis() - aloneSince >= 30 * 1000
+      ) {
         // Si seul depuis au moins 30 secondes -> meurt.
+        // print("\nLe musicien est mort...")
         context.stop(self) // RIP
       }
+      context.system.scheduler.scheduleOnce(1.seconds, self, AmIAlone)
     }
 
-    case getCurrentContacts(contacts) => {
+    case GetCurrentContacts(contacts) => {
       aliveContacts = contacts
+      // TODO : Il faut déplacer la logique master existante dans musicien dans le coeur de l'acteur Master
+      masterRef ! contacts
+    }
+
+    case AloneSince => {
+      updateAloneSince()
+    }
+
+    case Musicien.BecomeMaster => {
+      print("\n Has become master")
+      if (!amIMaster) {
+        masterRef = context.actorOf(
+        )
+      }
     }
   }
 
