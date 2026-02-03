@@ -89,10 +89,11 @@ class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
               myContactList,
               amIMaster
             ) // timestamp est un long
+            println("Musicien " + i + " est présent")
             numberOfMusicianAtLaunch += 1
           case Failure(
                 ex
-              ) => // TODO : Acteur absent, rien à faire
+              ) => println("Musicien " + i + " est absent")// Acteur absent, rien à faire
         }
       }
 
@@ -134,7 +135,7 @@ class Musicien(val id: Int, val terminaux: List[Terminal]) extends Actor {
           .currentTimeMillis() - aloneSince >= 30 * 1000
       ) {
         // Si seul depuis au moins 30 secondes -> meurt.
-        // print("\nLe musicien est mort...")
+        print("\nLe chef d'orchestre quitte le spectacle, fin du spectacle !")
         context.stop(self) // RIP
       }
       context.system.scheduler.scheduleOnce(1.seconds, self, AmIAlone)

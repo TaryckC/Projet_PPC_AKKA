@@ -3,9 +3,19 @@ package upmc.akka.leader
 import com.typesafe.config.ConfigFactory
 import akka.actor._
 
+import java.net.ServerSocket
+import scala.util.Try
+
 case class Terminal(id: Int, ip: String, port: Int)
 
 object Projet {
+
+  def isPortAvailable(port: Int): Boolean = {
+    // On essaie d'ouvrir le port. Si ça réussit, on le ferme et on renvoie true.
+    val socketTry = Try(new ServerSocket(port))
+    socketTry.foreach(_.close())
+    socketTry.isSuccess
+  }
 
   def main(args: Array[String]): Unit = {
     // Gestion des erreurs
@@ -37,6 +47,18 @@ object Projet {
         .getValue("akka.remote.netty.tcp.port")
         .render()
       musicienlist = Terminal(i, address, port.toInt) :: musicienlist
+    }
+
+    val targetPort = ConfigFactory.load()
+      .getConfig("system" + id)
+      .getInt("akka.remote.netty.tcp.port")
+
+    // Vérifier si le port est libre - Si on essaye d'ajouter deux contacts avec le même id
+    if (!isPortAvailable(targetPort)) {
+      println(s"--- ERREUR ---")
+      println(s"Le musicien $id ne peut pas être lancé car le port $targetPort est déjà occupé.")
+      println(s"Une autre instance du musicien $id est probablement déjà en cours d'exécution.")
+      sys.exit(1)
     }
 
     println(musicienlist)

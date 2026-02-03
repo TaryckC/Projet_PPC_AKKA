@@ -63,8 +63,8 @@ class ContactListActor(val ownerId: Int, onwerRef: ActorRef, birthDate: Long)
   def receive: Receive = {
 
     case AddContact(targetId, timeStamp, contactRef, isMaster) => {
-      print("\nLe musicien " + targetId + " est déjà là !")
-      // TODO : Cas à gérer - Si on essaye d'ajouter deux contacts avec le même id
+      print("\nLe musicien " + targetId + " est là !")
+
       val now = System.currentTimeMillis()
       contacts += targetId -> Contact(
         targetId,
